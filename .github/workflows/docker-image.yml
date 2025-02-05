@@ -1,47 +1,17 @@
-name: Build and Deploy to OCI Container Registry
-
+name: Deploy Worker
 on:
   push:
     branches:
-      - main  # Trigger on push to main branch
-
+      - main
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 60
+    needs: test
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-
-    - name: Log in to OCI Container Registry
-      env:
-        OCI_USER_ID: ${{ secrets.OCI_USER_ID }}
-        OCI_TENANCY_ID: ${{ secrets.OCI_TENANCY_ID }}
-        OCI_REGION: ${{ secrets.OCI_REGION }}
-        OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
-        OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
-      run: |
-        echo "$OCI_PRIVATE_KEY" > oci_api_key.pem
-        docker login -u "$OCI_USER_ID/$OCI_TENANCY_ID" -p "`cat oci_api_key.pem`" $OCI_REGION.ocir.io
-
-    - name: Build Docker image
-      run: |
-        docker build -t $OCI_REGION.ocir.io/$OCI_TENANCY_ID/jerjel/ai-react-app:latest .
-
-    - name: Push Docker image to OCI Container Registry
-      run: |
-        docker push $OCI_REGION.ocir.io/$OCI_TENANCY_ID/jerjel/ai-react-app:latest
-
-    - name: Deploy to OCI Container Instance (Optional)
-      env:
-        OCI_USER_ID: ${{ secrets.OCI_USER_ID }}
-        OCI_TENANCY_ID: ${{ secrets.OCI_TENANCY_ID }}
-        OCI_REGION: ${{ secrets.OCI_REGION }}
-        OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
-        OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
-      run: |
-        # Add your deployment script here
-        # Example: Use OCI CLI to update a container instance with the new image
-        oci container-instances container-instance update \
-          --container-instance-id <your-container-instance-id> \
-          --containers '[{"image": "$OCI_REGION.ocir.io/$OCI_TENANCY_ID/jerjel/ai-react-app:latest"}]'
+      - uses: actions/checkout@v4
+      - name: Build & Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
